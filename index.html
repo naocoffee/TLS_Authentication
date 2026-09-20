@@ -1,1 +1,158 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>偽サーバーを見破れ！ ― CA証明書検証ゲーム</title>
+<link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2290%22>🕵️</text></svg>">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Shippori+Mincho:wght@500;700;800&family=Zen+Kaku+Gothic+New:wght@400;500;700;900&family=JetBrains+Mono:wght@400;500;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
 
+<div class="deskbg">
+
+  <header class="case-header">
+    <div class="case-header__stamp" aria-hidden="true">CASE FILE</div>
+    <h1 class="case-header__title">偽サーバーを見破れ！</h1>
+    <p class="case-header__sub">認証局（CA）とデジタル証明書 検証ゲーム</p>
+    <div class="case-header__meta">
+      <div class="meta-chip">
+        <span class="meta-chip__label">検挙数</span>
+        <span class="meta-chip__value" id="score-solved">0</span>
+      </div>
+      <div class="meta-chip">
+        <span class="meta-chip__label">取扱件数</span>
+        <span class="meta-chip__value" id="score-total">0</span>
+      </div>
+      <div class="meta-chip">
+        <span class="meta-chip__label">連続正解</span>
+        <span class="meta-chip__value" id="score-streak">0</span>
+      </div>
+    </div>
+  </header>
+
+  <!-- ==================== 導入画面 ==================== -->
+  <section id="intro-screen" class="panel intro-panel">
+    <div class="intro-panel__text">
+      <p class="intro-panel__lede">依頼人からの手紙</p>
+      <p>
+        調査官へ。<br>
+        最近、本物そっくりのサイトを装って利用者をだます「なりすましサイト」が
+        多発している。あなたの仕事は、Webサイトが提示する<strong>デジタル証明書</strong>を調べ、
+        それが信頼できる<strong>認証局（CA）</strong>によって正しく発行されたものかどうかを
+        見極めることだ。
+      </p>
+      <p>
+        証明書の署名を、信頼できるCAの公開鍵で復号し、証明書から計算されるハッシュ値と
+        一致するか、そして接続先のドメイン名が証明書のものと一致するかを確認せよ。
+        一つでも食い違えば、それは偽物の合図だ。
+      </p>
+    </div>
+    <button id="start-btn" class="btn btn--primary btn--large">捜査を開始する</button>
+  </section>
+
+  <!-- ==================== ゲーム画面 ==================== -->
+  <section id="game-screen" class="game-screen hidden">
+
+    <div class="target-line">
+      <span class="target-line__label">接続要求先</span>
+      <span class="target-line__domain" id="target-domain">example.com</span>
+    </div>
+
+    <div class="board">
+
+      <!-- 証明書カード -->
+      <article class="cert-card" id="cert-card" aria-label="サーバーから受け取ったデジタル証明書">
+        <div class="cert-card__ribbon">DIGITAL CERTIFICATE</div>
+        <h2 class="cert-card__title">サーバー証明書</h2>
+
+        <dl class="cert-card__rows">
+          <div class="cert-card__row">
+            <dt>サブジェクト（発行対象ドメイン）</dt>
+            <dd id="cert-subject" class="mono">-</dd>
+          </div>
+          <div class="cert-card__row">
+            <dt>発行者（Issuer CA）</dt>
+            <dd id="cert-issuer">-</dd>
+          </div>
+          <div class="cert-card__row">
+            <dt>サーバー公開鍵フィンガープリント</dt>
+            <dd id="cert-pubkey" class="mono">-</dd>
+          </div>
+          <div class="cert-card__row">
+            <dt>有効期間</dt>
+            <dd id="cert-validity" class="mono">-</dd>
+          </div>
+          <div class="cert-card__row cert-card__row--sig">
+            <dt>CAによるデジタル署名</dt>
+            <dd id="cert-signature" class="mono">-</dd>
+          </div>
+        </dl>
+
+        <div class="cert-card__seal" id="cert-seal" aria-hidden="true">?</div>
+      </article>
+
+      <!-- 検証パネル -->
+      <div class="verify-panel">
+
+        <div class="verify-step" id="step-1">
+          <h3 class="verify-step__title"><span class="verify-step__num">STEP 1</span>信頼できるCAの公開鍵を選ぶ</h3>
+          <p class="verify-step__desc">証明書の発行者と一致するCAの公開鍵を選択せよ。</p>
+          <div class="ca-list" id="ca-list"><!-- JSで生成 --></div>
+        </div>
+
+        <div class="verify-step" id="step-2">
+          <h3 class="verify-step__title"><span class="verify-step__num">STEP 2</span>署名を復号してハッシュ値を照合する</h3>
+          <p class="verify-step__desc">選んだ公開鍵で署名を復号し、証明書内容から計算したハッシュ値と比較する。</p>
+          <button id="decrypt-btn" class="btn btn--secondary" disabled>選択した鍵で署名を復号する</button>
+
+          <div class="verify-log" id="verify-log" aria-live="polite"></div>
+
+          <div class="hash-compare hidden" id="hash-compare">
+            <div class="hash-compare__row">
+              <span class="hash-compare__label">署名を復号して得たハッシュ値</span>
+              <span class="hash-compare__value mono" id="hash-decrypted">-</span>
+            </div>
+            <div class="hash-compare__row">
+              <span class="hash-compare__label">証明書の内容から計算したハッシュ値</span>
+              <span class="hash-compare__value mono" id="hash-computed">-</span>
+            </div>
+          </div>
+        </div>
+
+        <div class="verify-step" id="step-3">
+          <h3 class="verify-step__title"><span class="verify-step__num">STEP 3</span>最終判定を下す</h3>
+          <p class="verify-step__desc">ハッシュ値の一致とドメイン名の一致、両方を確認せよ。</p>
+          <button id="judge-safe-btn" class="btn btn--judge btn--safe" disabled>安全と判定し接続する</button>
+          <button id="judge-block-btn" class="btn btn--judge btn--block" disabled>なりすましと判定し遮断する</button>
+        </div>
+
+      </div>
+    </div>
+
+    <button id="reset-btn" class="btn btn--ghost">この事件を放棄して最初からやり直す</button>
+  </section>
+
+  <!-- ==================== 結果オーバーレイ ==================== -->
+  <div id="result-overlay" class="result-overlay hidden">
+    <div class="result-card" id="result-card">
+      <div class="result-card__icon" id="result-icon">🔒</div>
+      <h2 class="result-card__title" id="result-title">安全な接続です</h2>
+      <p class="result-card__body" id="result-body">検証内容がここに表示されます。</p>
+      <div class="result-card__facts" id="result-facts"></div>
+      <button id="next-btn" class="btn btn--primary">次の事件へ</button>
+    </div>
+  </div>
+
+  <footer class="case-footer">
+    <p>本ゲーム内の鍵・署名・ハッシュ値はすべて学習用のシミュレーションであり、実際の暗号処理ではありません。</p>
+  </footer>
+
+</div>
+
+<script src="script.js"></script>
+</body>
+</html>
