@@ -125,6 +125,84 @@ body{
 }
 
 /* ===================================================================
+   用語対応表
+=================================================================== */
+.legend-panel{
+  padding: 16px 22px 20px;
+  margin-bottom: 22px;
+}
+
+.legend-panel__summary{
+  cursor: pointer;
+  list-style: none;
+  display:flex;
+  align-items:baseline;
+  gap: 10px;
+  padding: 2px 0;
+}
+
+.legend-panel__summary::-webkit-details-marker{ display:none; }
+
+.legend-panel__summary::before{
+  content: "▸";
+  font-size: 13px;
+  color: var(--seal-gold);
+  transition: transform 0.15s ease;
+}
+
+.legend-panel[open] .legend-panel__summary::before{
+  transform: rotate(90deg);
+}
+
+.legend-panel__summary-title{
+  font-family: var(--font-display);
+  font-weight: 700;
+  font-size: 17px;
+}
+
+.legend-panel__summary-hint{
+  font-size: 12px;
+  color: var(--ink-soft);
+}
+
+.legend-panel__desc{
+  font-size: 13px;
+  color: var(--ink-soft);
+  margin: 10px 0 14px;
+}
+
+.legend-grid{
+  margin: 0;
+  display:grid;
+  grid-template-columns: 1fr;
+  gap: 10px;
+}
+
+@media (min-width: 640px){
+  .legend-grid{ grid-template-columns: 1fr 1fr; }
+}
+
+.legend-row{
+  background: var(--paper);
+  border: 1px solid var(--rule);
+  border-left: 3px solid var(--seal-gold);
+  border-radius: 3px;
+  padding: 8px 12px;
+}
+
+.legend-row dt{
+  font-weight: 700;
+  font-size: 13.5px;
+  margin-bottom: 3px;
+}
+
+.legend-row dd{
+  margin: 0;
+  font-size: 12.5px;
+  color: var(--ink-soft);
+}
+
+/* ===================================================================
    導入画面
 =================================================================== */
 .intro-panel{
@@ -473,6 +551,70 @@ body{
 
 .hash-compare__value.match{ color: var(--verified); font-weight:700; }
 .hash-compare__value.mismatch{ color: var(--stamp-red); font-weight:700; }
+
+/* ===================================================================
+   STEP4: 鍵交換パネル
+=================================================================== */
+.step4-panel{
+  margin-top: 22px;
+  padding: 20px 22px 24px;
+  border-top: 4px solid var(--seal-gold);
+}
+
+.step4-flow{
+  display:grid;
+  grid-template-columns: 1fr;
+  gap: 12px;
+  margin: 14px 0 16px;
+}
+
+@media (min-width: 700px){
+  .step4-flow{ grid-template-columns: 1fr 1fr; }
+}
+
+.step4-item{
+  background: var(--paper);
+  border: 1px solid var(--rule);
+  border-radius: 4px;
+  padding: 12px 14px 14px;
+  display:flex;
+  flex-direction:column;
+  gap: 6px;
+}
+
+.step4-item h4{
+  margin: 0;
+  font-size: 14px;
+  font-family: var(--font-body);
+  font-weight: 700;
+}
+
+.step4-item__note{
+  margin: 0;
+  font-size: 11.5px;
+  color: var(--seal-gold);
+}
+
+.step4-value{
+  font-size: 12px;
+  color: var(--ink-soft);
+  background: var(--paper-light);
+  border: 1px dashed var(--rule-strong);
+  border-radius: 2px;
+  padding: 6px 8px;
+  min-height: 14px;
+  word-break: break-all;
+}
+
+.step4-result{
+  background: var(--verified-lt);
+  border: 1px solid var(--verified);
+  color: var(--verified);
+  border-radius: 4px;
+  padding: 12px 14px;
+  font-size: 13.5px;
+  margin-bottom: 18px;
+}
 
 /* ===================================================================
    結果オーバーレイ

@@ -34,6 +34,52 @@
     </div>
   </header>
 
+  <!-- ==================== 用語対応表 ==================== -->
+  <details class="legend-panel panel" id="legend-panel" open>
+    <summary class="legend-panel__summary">
+      <span class="legend-panel__summary-title">TLS用語 対応表</span>
+      <span class="legend-panel__summary-hint">(クリックで開閉)</span>
+    </summary>
+    <p class="legend-panel__desc">
+      このゲームの中の要素が、実際のTLS通信のどの概念に対応しているかの早見表。
+      迷ったらここに戻ろう。
+    </p>
+    <dl class="legend-grid">
+      <div class="legend-row">
+        <dt>接続要求を行うPC（クライアント）</dt>
+        <dd>あなた（調査官）自身。STEP1〜STEP4の判断・操作を行う主体</dd>
+      </div>
+      <div class="legend-row">
+        <dt>Webサーバー</dt>
+        <dd>「接続要求先」に表示されるドメインの持ち主。証明書を提示してくる相手</dd>
+      </div>
+      <div class="legend-row">
+        <dt>認証局（CA）</dt>
+        <dd>STEP1の一覧に並ぶ発行元。証明書に署名して身元を保証する第三者機関</dd>
+      </div>
+      <div class="legend-row">
+        <dt>証明書</dt>
+        <dd>画面中央の「サーバー証明書」カード</dd>
+      </div>
+      <div class="legend-row">
+        <dt>公開鍵</dt>
+        <dd>証明書内の「サーバー公開鍵フィンガープリント」、およびSTEP1で選ぶ各CAの公開鍵</dd>
+      </div>
+      <div class="legend-row">
+        <dt>秘密鍵</dt>
+        <dd>STEP4でサーバーだけが持つ鍵。プレマスターシークレットの復号に使う</dd>
+      </div>
+      <div class="legend-row">
+        <dt>ハッシュ値</dt>
+        <dd>STEP2で比較する2つの値（署名を復号して得た値／証明書の内容から計算した値）</dd>
+      </div>
+      <div class="legend-row">
+        <dt>共通鍵（セッション鍵）</dt>
+        <dd>STEP4の最後に導出される、以降の通信を暗号化するための鍵</dd>
+      </div>
+    </dl>
+  </details>
+
   <!-- ==================== 導入画面 ==================== -->
   <section id="intro-screen" class="panel intro-panel">
     <div class="intro-panel__text">
@@ -133,6 +179,49 @@
       </div>
     </div>
 
+    <!-- STEP4: 鍵交換とデータ暗号化 -->
+    <section class="step4-panel hidden panel" id="step4-panel">
+      <h3 class="verify-step__title"><span class="verify-step__num">STEP 4</span>鍵交換して通信を暗号化する</h3>
+      <p class="verify-step__desc">
+        証明書が本物と確認できたので、続けてTLSの鍵交換（ハンドシェイク）をシミュレートしよう。
+        ここから先はPCとサーバーの間だけの話で、CAは登場しない。
+      </p>
+
+      <div class="step4-flow">
+        <div class="step4-item">
+          <h4>① PC（クライアント）がプレマスターシークレットを生成する</h4>
+          <p class="step4-item__note">概念：共通鍵のもとになる乱数</p>
+          <p class="mono step4-value" id="s4-pms">-</p>
+          <button class="btn btn--secondary" id="s4-gen-btn">生成する</button>
+        </div>
+        <div class="step4-item">
+          <h4>② サーバーの公開鍵で暗号化して送信する</h4>
+          <p class="step4-item__note">概念：公開鍵暗号（証明書内の公開鍵を使用）</p>
+          <p class="mono step4-value" id="s4-enc">-</p>
+          <button class="btn btn--secondary" id="s4-enc-btn" disabled>公開鍵で暗号化する</button>
+        </div>
+        <div class="step4-item">
+          <h4>③ サーバーが自分の秘密鍵で復号する</h4>
+          <p class="step4-item__note">概念：秘密鍵（サーバーだけが持つ）</p>
+          <p class="mono step4-value" id="s4-dec">-</p>
+          <button class="btn btn--secondary" id="s4-dec-btn" disabled>秘密鍵で復号する</button>
+        </div>
+        <div class="step4-item">
+          <h4>④ 共通鍵（セッション鍵）を導出する</h4>
+          <p class="step4-item__note">概念：共通鍵暗号（以降の通信で使用）</p>
+          <p class="mono step4-value" id="s4-common">-</p>
+          <button class="btn btn--secondary" id="s4-common-btn" disabled>共通鍵を導出する</button>
+        </div>
+      </div>
+
+      <div class="step4-result hidden" id="step4-result">
+        🔒 これ以降の通信は、この共通鍵で暗号化される（HTTPS通信の開始）。
+        公開鍵暗号は計算が重いため最初の鍵交換だけに使い、実際のデータのやり取りは軽い共通鍵暗号で行う。
+      </div>
+
+      <button id="step4-next-btn" class="btn btn--primary">次の事件へ</button>
+    </section>
+
     <button id="reset-btn" class="btn btn--ghost">この事件を放棄して最初からやり直す</button>
   </section>
 
@@ -143,6 +232,7 @@
       <h2 class="result-card__title" id="result-title">安全な接続です</h2>
       <p class="result-card__body" id="result-body">検証内容がここに表示されます。</p>
       <div class="result-card__facts" id="result-facts"></div>
+      <button id="goto-step4-btn" class="btn btn--primary hidden">続けて鍵交換を見る（STEP4）</button>
       <button id="next-btn" class="btn btn--primary">次の事件へ</button>
     </div>
   </div>

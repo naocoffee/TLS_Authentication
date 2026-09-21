@@ -149,7 +149,20 @@ const resultIcon    = el("result-icon");
 const resultTitle   = el("result-title");
 const resultBody    = el("result-body");
 const resultFacts   = el("result-facts");
+const gotoStep4Btn  = el("goto-step4-btn");
 const nextBtn       = el("next-btn");
+
+const step4Panel   = el("step4-panel");
+const s4PmsEl      = el("s4-pms");
+const s4EncEl      = el("s4-enc");
+const s4DecEl      = el("s4-dec");
+const s4CommonEl   = el("s4-common");
+const s4GenBtn     = el("s4-gen-btn");
+const s4EncBtn     = el("s4-enc-btn");
+const s4DecBtn     = el("s4-dec-btn");
+const s4CommonBtn  = el("s4-common-btn");
+const step4Result  = el("step4-result");
+const step4NextBtn = el("step4-next-btn");
 
 const scoreSolvedEl = el("score-solved");
 const scoreTotalEl  = el("score-total");
@@ -194,6 +207,9 @@ function renderRound() {
 
   judgeSafeBtn.disabled = true;
   judgeBlockBtn.disabled = true;
+
+  resetStep4();
+  step4Panel.classList.add("hidden");
 
   gameScreen.classList.remove("hidden");
   introScreen.classList.add("hidden");
@@ -293,9 +309,13 @@ function showResult(isActuallySafe, playerCorrect, facts) {
     ? "本物の証明書です。安全に接続できます。"
     : "なりすましの疑いがあります。接続を遮断しました。";
 
-  resultBody.textContent = playerCorrect
+  let bodyText = playerCorrect
     ? "あなたの判定は正しい。捜査は的確だった。"
     : "残念、判定を誤った。証拠をもう一度よく確認しよう。";
+  bodyText += isActuallySafe
+    ? " この後、実際のTLS通信では鍵交換（STEP4）へ進む。"
+    : " 証明書が不正なため、実際の通信では鍵交換は行われず接続が中止される。";
+  resultBody.textContent = bodyText;
 
   resultFacts.innerHTML = "";
   const factList = [
@@ -310,8 +330,75 @@ function showResult(isActuallySafe, playerCorrect, facts) {
     resultFacts.appendChild(row);
   });
 
+  gotoStep4Btn.classList.toggle("hidden", !isActuallySafe);
+
   resultOverlay.classList.remove("hidden");
 }
+
+/* =====================================================================
+   STEP4: 鍵交換シミュレーション
+===================================================================== */
+let step4State = null;
+
+function randomHex(bytes) {
+  let out = "";
+  for (let i = 0; i < bytes; i++) {
+    out += Math.floor(Math.random() * 256).toString(16).padStart(2, "0");
+  }
+  return out.toUpperCase();
+}
+
+function resetStep4() {
+  step4State = { pms: null, encrypted: null, decrypted: null, commonKey: null };
+  s4PmsEl.textContent = "-";
+  s4EncEl.textContent = "-";
+  s4DecEl.textContent = "-";
+  s4CommonEl.textContent = "-";
+  s4GenBtn.disabled = false;
+  s4EncBtn.disabled = true;
+  s4DecBtn.disabled = true;
+  s4CommonBtn.disabled = true;
+  step4Result.classList.add("hidden");
+}
+
+s4GenBtn.addEventListener("click", () => {
+  step4State.pms = randomHex(16);
+  s4PmsEl.textContent = step4State.pms;
+  s4GenBtn.disabled = true;
+  s4EncBtn.disabled = false;
+});
+
+s4EncBtn.addEventListener("click", () => {
+  // サーバー証明書に含まれる公開鍵で「暗号化」したことを表す（学習用の簡易表現）
+  step4State.encrypted = btoa(step4State.pms);
+  s4EncEl.textContent = `${step4State.encrypted}  ← 公開鍵: ${state.serverKeyFingerprint}`;
+  s4EncBtn.disabled = true;
+  s4DecBtn.disabled = false;
+});
+
+s4DecBtn.addEventListener("click", () => {
+  // サーバーだけが持つ秘密鍵で復号し、元のプレマスターシークレットが復元されることを表す
+  step4State.decrypted = atob(step4State.encrypted);
+  const ok = step4State.decrypted === step4State.pms;
+  s4DecEl.textContent = ok
+    ? `${step4State.decrypted}（復号成功：秘密鍵はこのサーバーだけが持っている）`
+    : "復号に失敗しました";
+  s4DecBtn.disabled = true;
+  s4CommonBtn.disabled = !ok;
+});
+
+s4CommonBtn.addEventListener("click", () => {
+  step4State.commonKey = pseudoHash(step4State.pms + "|" + state.subjectDomain + "|session");
+  s4CommonEl.textContent = step4State.commonKey;
+  s4CommonBtn.disabled = true;
+  step4Result.classList.remove("hidden");
+});
+
+step4NextBtn.addEventListener("click", () => {
+  step4Panel.classList.add("hidden");
+  state = buildRound();
+  renderRound();
+});
 
 /* =====================================================================
    イベント配線
@@ -328,8 +415,16 @@ judgeBlockBtn.addEventListener("click", () => evaluate(false));
 
 nextBtn.addEventListener("click", () => {
   resultOverlay.classList.add("hidden");
+  step4Panel.classList.add("hidden");
   state = buildRound();
   renderRound();
+});
+
+gotoStep4Btn.addEventListener("click", () => {
+  resultOverlay.classList.add("hidden");
+  resetStep4();
+  step4Panel.classList.remove("hidden");
+  step4Panel.scrollIntoView({ behavior: "smooth", block: "start" });
 });
 
 resetBtn.addEventListener("click", () => {
